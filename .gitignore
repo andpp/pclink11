@@ -20,3 +20,10 @@
 /testrunner/Release
 /x-*
 $notes.txt
+testanalyzer/testanalyzer
+testanalyzer/testanalyzer.o
+testrunner/testlist.o
+testrunner/testrunner
+testrunner/testrunner.o
+CMakeLists.txt.user*
+
