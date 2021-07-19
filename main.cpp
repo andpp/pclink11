@@ -71,6 +71,8 @@ void initialize()
     Globals.DBOTTM = 01000;  // INITIAL BOTTOM ADR
     Globals.BOTTOM = 01000;  // INITIAL D-SPACE BOTTOM ADR
     Globals.KSWVAL = 128/*RELSTK*/;  // DEFAULT REL FILE STACK SIZE
+
+    Globals.MINADDR = 0xFFFF;
 }
 
 // Free all memory, close all files
@@ -185,6 +187,13 @@ void parse_commandline_option(const char* cur)
     if (strcmp(cur, "MAP") == 0)
     {
         Globals.FlagMAP = true;
+        return;
+    }
+
+    // /BIN - Generates binary file
+    if (strcmp(cur, "BIN") == 0)
+    {
+        Globals.FlagBIN = true;
         return;
     }
 
@@ -433,6 +442,7 @@ void print_help()
            "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
            "  /SYMBOLTABLE /STB  Generates a symbol table file (.STB file)\n"
            "  /MAP               Generates map file\n"
+           "  /BIN               Genegate .BIN file instead of .SAV"
            "\n");
     //TODO
 }

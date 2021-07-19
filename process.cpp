@@ -1151,7 +1151,10 @@ void process_pass_map_init()
             *pext = '.';
         }
         pext++;  // skip the dot
-        if (Globals.SWITCH & SW_R)
+        if (Globals.FlagBIN) {
+            *pext++ = 'b'; *pext++ = 'i'; *pext = 'n';
+        }
+        else if (Globals.SWITCH & SW_R)
         {
             *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';
         }
@@ -2051,6 +2054,9 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     memcpy(dest, src, Globals.TXTLEN);
     printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
 
+    if(addr < Globals.MINADDR) Globals.MINADDR = addr;
+    if(addr + Globals.TXTLEN > Globals.MAXADDR) Globals.MAXADDR = addr + Globals.TXTLEN;
+
     mark_bitmap_bits(addr, Globals.TXTLEN);
     //TODO: if ((Globals.SWITCH & SW_X) != 0)
 
@@ -2322,6 +2328,21 @@ void process_pass2()
 void process_pass2_done()
 {
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
+
+    if(Globals.FlagBIN)
+    {
+        uint16_t len = Globals.MAXADDR - Globals.MINADDR;
+        fwrite(&Globals.MINADDR, 1, 2, outfileobj);
+        fwrite(&len, 1, 2, outfileobj);
+        size_t byteswrit = fwrite(OutputBuffer + Globals.MINADDR, 1, len, outfileobj);
+        if (byteswrit != len)
+            fatal_error("ERR6: Failed to write output file.\n");
+
+        // Done with the SAV file, closing
+        fclose(outfileobj);  outfileobj = nullptr;
+
+        return;
+    }
 
     Globals.BITMAP[0] |= 128;  // We always use block 1
 

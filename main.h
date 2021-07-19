@@ -214,6 +214,7 @@ extern SymbolTableEntry* SymbolTable;
 extern SymbolTableEntry* ASECTentry;
 extern int SymbolTableCount;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
+
 struct LibraryModuleEntry
 {
     uint8_t  libfileno;     // LIBRARY FILE # (8 BITS) 1-255
@@ -386,6 +387,7 @@ struct tagGlobals
     uint16_t    FLGWD;  // INTERNAL FLAG WORD
     bool        FlagSTB;  // STB FILE REQUESTED
     bool        FlagMAP;  // MAP FILE REQUESTED
+    bool        FlagBIN;  // BIN file requested
     //uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
     uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
 
@@ -404,6 +406,9 @@ struct tagGlobals
 
     //uint16_t    CBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
     //uint16_t    CBPTR;  // DEFAULT IS NO CREF
+    uint16_t MINADDR;  // Lowest TXT addr
+    uint16_t MAXADDR;  // Highest TXT addr
+
 };
 extern struct tagGlobals Globals;
 
