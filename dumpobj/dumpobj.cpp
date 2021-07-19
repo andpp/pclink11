@@ -44,6 +44,8 @@ static char radtbl[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ$. 0123456789";
 
 static char unrad50buffer[7];
 
+#define WORD(cp) ((*(cp) & 0xff) + ((*((cp)+1) & 0xff) << 8))
+
 // Decodes 3 chars of RAD50 into the given buffer
 void unrad50(uint16_t word, char *cp)
 {
@@ -131,6 +133,29 @@ const char* CPXCommandNames[] =
 
 /////////////////////////////////////////////////////////////////////////////
 
+int rad50name(char *cp, char *name)
+{
+    int i = 0;
+    if(WORD(cp) != 0xFFFF) {
+        // Decode RAD50 symbol
+        unrad50(WORD(cp), name);
+        unrad50(WORD(cp + 2), name + 3);
+        name[6] = 0;
+//        trim(name);
+        i = 4;
+    } else {
+        // Decode plain text symbol
+        cp+=2;
+        while(*cp) {
+            name[i] = *cp++;
+            i++;
+        }
+        name[i++] = 0;
+        i+=2;
+    }
+    return i;
+}
+
 
 void read_files()
 {
@@ -153,13 +178,21 @@ void read_files()
     fclose(file);
 }
 
-void dumpobj_gsd_item(const uint16_t* itemw)
+int dumpobj_gsd_item(const uint8_t* itemw)
 {
-    uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
-    int itemtype = (itemw[2] >> 8) & 0xff;
-    int itemflags = (itemw[2] & 0377);
+//    uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
+    int i;
+    char name[64];
 
-    printf("      GSD '%s' type %d - %s", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
+    i=rad50name((char *)itemw, name);
+//    int itemtype = (itemw[2] >> 8) & 0xff;
+//    int itemflags = (itemw[2] & 0377);
+    uint16_t itemflags = itemw[i++];
+    uint16_t itemtype = itemw[i++];
+    uint16_t value = (uint16_t)(itemw[i] + (itemw[i+1] << 8));
+    i+=2;
+
+    printf("      GSD '%s' type %d - %s", name, itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
     switch (itemtype)
     {
     case 0: // 0 - MODULE NAME FROM .TITLE
@@ -169,19 +202,19 @@ void dumpobj_gsd_item(const uint16_t* itemw)
         printf("\n");
         break;
     case 3: // 3 - TRANSFER ADDRESS
-        printf(" %06ho\n", itemw[3]);
+        printf(" %06ho\n", value);
         break;
     case 4: // 4 - GLOBAL SYMBOL
-        printf(" flags %03o addr %06ho\n", itemflags, itemw[3]);
+        printf(" flags %03o addr %06ho\n", itemflags, value);
         break;
     case 1: // 1 - CSECT NAME
-        printf(" %06ho\n", itemw[3]);
+        printf(" %06ho\n", value);
         break;
     case 5: // 5 - PSECT NAME
-        printf(" flags %03o maxlen %06ho\n", itemflags, itemw[3]);
+        printf(" flags %03o maxlen %06ho\n", itemflags, value);
         break;
     case 6: // 6 - IDENT DEFINITION
-        printf(" '%s'\n", unrad50(itemnamerad50));
+        printf(" '%s'\n", name);
         break;
     case 7: // 7 - VIRTUAL SECTION
         printf("\n");
@@ -190,21 +223,61 @@ void dumpobj_gsd_item(const uint16_t* itemw)
         printf("\n");
         fatal_error("Bad GSD type %d found in %s.\n", itemtype, objfilename);
     }
+    return i;
 }
 
 void dumpobj_gsd_block(uint8_t* data)
 {
     assert(data != nullptr);
 
-    uint16_t blocksize = ((uint16_t*)data)[1];
-    int itemcount = (blocksize - 6) / 8;
+    uint16_t blocksize = ((uint16_t*)data)[1]-6;
+//    int itemcount = (blocksize - 6) / 8;
 
-    for (int i = 0; i < itemcount; i++)
+//    for (int i = 0; i < itemcount; i++)
+    for(int i=0; i<blocksize; )
     {
-        const uint16_t* itemw = (const uint16_t*)(data + 6 + 8 * i);
+        const uint8_t* itemw = (const uint8_t*)(data + 6 + i);
 
-        dumpobj_gsd_item(itemw);
+        i += dumpobj_gsd_item(itemw);
     }
+}
+
+void dump_words(unsigned addr, char *buf, int len)
+{
+    int i;
+    int j;
+
+    for (i = 0; i < len; i += 8) {
+        printf("\t%6.6o: ", addr);
+
+        for (j = i; j < len && j < i + 8; j += 2)
+            if (len - j >= 2) {
+                unsigned word = WORD(buf + j);
+
+                printf("%6.6o ", word);
+            } else
+                printf("%3.3o    ", buf[j] & 0xff);
+
+        printf("%*s", (i + 8 - j) * 7 / 2, "");
+
+        for (j = i; j < len && j < i + 8; j++) {
+            int             c = buf[j] & 0xff;
+
+            if (!isprint(c))
+                c = '.';
+            putchar(c);
+        }
+
+        putchar('\n');
+        addr += 8;
+    }
+}
+void dumpobj_txt_block(u_int8_t *data)
+{
+    assert(data != nullptr);
+    int len = WORD(data + 2) - 8;
+    dump_words(0, (char *)data+8, len);
+
 }
 
 // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC), see LINK7\RLDCPX
@@ -270,13 +343,17 @@ uint16_t dumpobj_rld_complex(uint8_t* &data, uint16_t &offset, uint16_t blocksiz
 void dumpobj_rld_block(uint8_t* data)
 {
     assert(data != nullptr);
+    char name[64];
+    int l;
+
+    int8_t disp;
 
     uint16_t blocksize = ((uint16_t*)data)[1];
     uint16_t offset = 6;  data += 6;
     while (offset < blocksize)
     {
         uint8_t command = *data;  data++;  offset++;  // CMD BYTE OF RLD
-        data++;  offset++;  // DISPLACEMENT BYTE
+        disp = *data++ -4;  offset++;  // DISPLACEMENT BYTE
 
         printf("      RLD type %03ho %s",
                (uint16_t)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
@@ -293,8 +370,9 @@ void dumpobj_rld_block(uint8_t* data)
         case 002:  // GLOBAL
         case 012:  // PSECT
             // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
-            printf(" '%s'\n", unrad50(*((uint32_t*)data)));
-            data += 4;  offset += 4;
+            l = rad50name((char *)data, name);
+            printf(" '%s'\n", name);
+            data += l;  offset += l;
             break;
         case 003:  // INTERNAL DISPLACED
             // RELATIVE REFERENCE TO AN ABSOLUTE ADDRESS FROM WITHIN A RELOCATABLE SECTION.
@@ -305,31 +383,40 @@ void dumpobj_rld_block(uint8_t* data)
             break;
         case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
         case 014:  // PSECT DISPLACED
-            printf(" '%s'\n", unrad50(*((uint32_t*)data)));
-            data += 4;  offset += 4;
+            l = rad50name((char *)data, name);
+            printf(" '%s'\n", name);
+            data += l;  offset += l;
             break;
         case 005:  // GLOBAL ADDITIVE REL
         case 015:  // PSECT ADDITIVE
             // RELOCATED A DIRECT POINTER TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT
             // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
-            constdata = ((uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
-            data += 6;  offset += 6;
+            l = rad50name((char *)data, name);
+//            constdata = ((uint16_t*)data)[2];
+            constdata = WORD(data + l);
+            printf(" '%s' %06ho\n", name, constdata);
+//            data += 6;  offset += 6;
+            data += l + 2;  offset += l + 2;
             break;
         case 006:  // GLOBAL ADDITIVE DISPLACED
         case 016:  // PSECT ADDITIVE DISPLACED
             // RELATIVE REFERENCE TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT.
             // THE GLOBAL VALUE AND THE CONSTANT ARE ADDED. THE ADDRESS + 2 THAT THE RELOCATED VALUE IS
             // TO BE WRITTEN INTO IS SUBTRACTED FROM THE RESULTANT ADDITIVE VALUE & STORED.
-            constdata = ((uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
-            data += 6;  offset += 6;
+            l = rad50name((char *)data, name);
+//            constdata = ((uint16_t*)data)[2];
+            constdata = WORD(data + l);
+            printf(" '%s' %06ho\n", name, constdata);
+            //  data += 6;  offset += 6;
+            data += l + 2;  offset += l + 2;
             break;
         case 007:  // LOCATION COUNTER DEFINITION, see LINK7\RLDLCD
             // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE
-            constdata = ((uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
-            data += 6;  offset += 6;
+//            constdata = ((uint16_t*)data)[2];
+            l = rad50name((char *)data, name);
+            constdata = WORD(data + l);
+            printf(" '%s' %06ho\n", name, constdata);
+            data += l + 2;  offset += l + 2;
             break;
         case 010:  // LOCATION COUNTER MODIFICATION, see LINK7\RLDLCM
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
@@ -389,53 +476,56 @@ void dumpobj()
         uint16_t blocksize = ((uint16_t*)data)[1];
         uint16_t blocktype = ((uint16_t*)data)[2];
 
-        if (blocktype == 0 || blocktype > 8)
-            fatal_error("Illegal record type at %06ho in %s\n", offset, objfilename);
-        else if (blocktype == 1)  // 1 - START GSD RECORD
-        {
-            int itemcount = (blocksize - 6) / 8;
-            printf("  Block type 1 - GSD at %06ho size %06ho itemcount %d\n", (uint16_t)offset, blocksize, itemcount);
-            dumpobj_gsd_block(data);
+        switch (blocktype) {
+            case  1:  { // 1 - START GSD RECORD
+                int itemcount = (blocksize - 6) / 8;
+                printf("  Block type 1 - GSD at %06ho size %06ho itemcount %d\n", (uint16_t)offset, blocksize, itemcount);
+                dumpobj_gsd_block(data);
+                break;
+            }
+            case 2: {  // 2 - ENDGSD
+                printf("  Block type 2 - ENDGSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                break;
+            }
+            case 3: {  // 3 - TXT
+                uint16_t addr = ((uint16_t*)data)[3];
+                uint16_t datasize = blocksize - 8;
+                printf("  Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
+                dumpobj_txt_block(data);
+                break;
+            }
+            case 4: {  // 4 - RLD
+                printf("  Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                dumpobj_rld_block(data);
+                break;
+            }
+            case 5: {  // 5 - ISD
+                printf("  Block type 5 - ISD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //dumpobj_isd_block(data);
+                break;
+            }
+            case 6: {  // 6 - MODULE END
+                printf("  Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                break;
+            }
+            case 7: {  // 7 - TITLIB
+                printf("  Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
+                printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
+                //data += 32/*L_HEPT*/; offset += 32/*L_HEPT*/;  // Move to 1ST EPT ENTRY
+                dumpobj_titlib_block(data + 32, eptsize);
+                data += 32 + eptsize; offset += 32 + eptsize;
+                continue;
+            }
+            case 8: {
+                printf("  Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                break;
+            }
+            default: {
+                fatal_error("Illegal record type at %06ho in %s\n", offset, objfilename);
+            }
         }
-        else if (blocktype == 2)  // 2 - ENDGSD
-        {
-            printf("  Block type 2 - ENDGSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-        }
-        else if (blocktype == 3)  // 3 - TXT
-        {
-            uint16_t addr = ((uint16_t*)data)[3];
-            uint16_t datasize = blocksize - 8;
-            printf("  Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
-            //dumpobj_txt_block(data);
-        }
-        else if (blocktype == 4)  // 4 - RLD
-        {
-            printf("  Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-            dumpobj_rld_block(data);
-        }
-        else if (blocktype == 5)  // 5 - ISD
-        {
-            printf("  Block type 5 - ISD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-            //dumpobj_isd_block(data);
-        }
-        else if (blocktype == 6)  // 6 - MODULE END
-        {
-            printf("  Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-        }
-        else if (blocktype == 7)  // 7 - TITLIB
-        {
-            printf("  Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-            uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
-            printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
-            //data += 32/*L_HEPT*/; offset += 32/*L_HEPT*/;  // Move to 1ST EPT ENTRY
-            dumpobj_titlib_block(data + 32, eptsize);
-            data += 32 + eptsize; offset += 32 + eptsize;
-            continue;
-        }
-        else if (blocktype == 8)
-        {
-            printf("  Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-        }
+
 
         data += blocksize; offset += blocksize;
         data += 1; offset += 1;  // Skip checksum
