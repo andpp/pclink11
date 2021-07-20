@@ -199,17 +199,19 @@ extern int SaveStatusCount;
 // **** SYMBOL TABLE STRUCTURE
 struct SymbolTableEntry
 {
-    string      name;       // 2 WD RAD50 NAME
+    string      *name;       // 2 WD RAD50 NAME
     uint16_t    flagseg;    // PSECT FLAGS !  SEG #
     uint16_t    value;      // VALUE WORD
     uint16_t    status;     // A!B!C!D!  ENTRY # PTR
+    uint16_t    next;       // next index
 
-    const char* unrad50name() const { return name.c_str(); }
+    const char* unrad50name() const { return name->c_str(); }
     uint8_t flags() const { return (flagseg >> 8); }
     uint8_t seg() const { return flagseg & 0xff; }
-    uint16_t nextindex() const { return status & 07777; }
+//    uint16_t nextindex() const { return status & 07777; }
+    uint16_t nextindex() const { return next; }
 };
-const int SymbolTableSize = 4095;  // STSIZE
+const int SymbolTableSize = 8191;  // STSIZE
 extern SymbolTableEntry* SymbolTable;
 extern SymbolTableEntry* ASECTentry;
 extern int SymbolTableCount;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
@@ -355,9 +357,9 @@ struct tagGlobals
     //uint16_t    DSGBAS; // PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
     //uint16_t    DSGBLK; // PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
 
-    string    MODNAM; // MODULE NAME, RAD50
+    string    *MODNAM; // MODULE NAME, RAD50
     // LDA OUTPUT BUFR PTR OR REL INFO BUFR PTR
-    string    IDENT;  // PROGRAM IDENTIFICATION
+    string    *IDENT;  // PROGRAM IDENTIFICATION
     // "RELADR" ADR OF RELOCATION CODE IN TEXT OF REL FILE
     // +2 "RELOVL" NEXT REL BLK OVERLAY #
 

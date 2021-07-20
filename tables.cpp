@@ -44,7 +44,7 @@ void symbol_table_enter(int* pindex, const string &lkname, uint16_t lkwd)
     for (;;)
     {
         entry = SymbolTable + index;
-        if (entry->name.size() == 0)
+        if (entry->name == nullptr)
             break;
         index++;
         if (index >= SymbolTableSize)
@@ -59,7 +59,8 @@ void symbol_table_enter(int* pindex, const string &lkname, uint16_t lkwd)
 
     // Save the entry
     SymbolTableCount++;
-    entry->name = (lkname.empty()) ? "  " + std::to_string((Globals.SEGNUM + 1) << 2) : lkname ;
+//    *entry->name = lkname.empty() ? "  " + std::to_string((Globals.SEGNUM + 1)) : lkname;
+    entry->name = new string(lkname);
     entry->flagseg = lkwd;
     *pindex = index;
 }
@@ -111,7 +112,9 @@ void symbol_table_remove_undefined(int index)
     else
     {
         SymbolTableEntry* preventry = SymbolTable + previndex;
-        preventry->status = (preventry->status & 0170000) | (entry->status & 07777);
+//        preventry->status = (preventry->status & 0170000) | (entry->status & 07777);
+        preventry->status = (preventry->status & 0170000);
+        preventry->next = entry->nextindex();
     }
     if (nextindex != 0)
     {
@@ -120,6 +123,7 @@ void symbol_table_remove_undefined(int index)
     }
     entry->value = 0;
     entry->status &= 0170000;
+    entry->next = 0;
 }
 
 // ANY UNDEFINED SYMBOLS IN LIST ? See LINK3\ANYUND
@@ -170,8 +174,8 @@ bool symbol_table_search_routine(const string &_lkname, uint16_t lkwd, uint16_t 
     else
     {
         // 0 = BLANK NAME
-        hash = (Globals.SEGNUM + 1) << 2;  // USE SEGMENT # FOR BLANK SECTION NAME
-        lkname = "  " + std::to_string(hash);
+//      hash = (Globals.SEGNUM + 1) << 2;  // USE SEGMENT # FOR BLANK SECTION NAME
+        hash = hash_func(std::to_string((Globals.SEGNUM + 1)));
     }
 
     // Normalize hash to table size
@@ -190,12 +194,12 @@ bool symbol_table_search_routine(const string &_lkname, uint16_t lkwd, uint16_t 
     for (;;)
     {
         SymbolTableEntry* entry = SymbolTable + index;
-        if (entry->name.size() == 0)
+        if (entry->name == nullptr)
         {
             *result = index;
             break;  // EMPTY CELL
         }
-        if (entry->name == lkname)
+        if (*entry->name == lkname)
         {
             // AT THIS POINT HAVE FOUND A MATCHING SYMBOL NAME, NOW MUST CHECK FOR MATCHING ATTRIBUTES.
             uint16_t flagsmasked = (entry->flagseg & ~lkmsk);
@@ -294,7 +298,7 @@ void print_symbol_table()
     for (int i = 0; i < SymbolTableSize; i++)
     {
         const SymbolTableEntry* entry = SymbolTable + i;
-        if (entry->name.size() == 0)
+        if (entry->name->size() == 0)
             continue;
         printf("    %06ho '%s' %06ho %06ho %06ho  ", (uint16_t)i, entry->unrad50name(), entry->flagseg, entry->value, entry->status);
         if (entry->flagseg & SY_SEC) printf("SECT ");

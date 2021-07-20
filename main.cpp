@@ -73,6 +73,9 @@ void initialize()
     Globals.KSWVAL = 128/*RELSTK*/;  // DEFAULT REL FILE STACK SIZE
 
     Globals.MINADDR = 0xFFFF;
+
+    Globals.MODNAM = new string("");
+    Globals.IDENT = new string("");
 }
 
 // Free all memory, close all files
