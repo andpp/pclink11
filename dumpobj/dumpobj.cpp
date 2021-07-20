@@ -15,6 +15,8 @@ char objfilename[256] = { 0 };
 size_t objfilesize;
 void* objfiledata = nullptr;
 
+#define MAX_SYM_LEN 64
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -182,7 +184,7 @@ int dumpobj_gsd_item(const uint8_t* itemw)
 {
 //    uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
     int i;
-    char name[64];
+    char name[MAX_SYM_LEN];
 
     i=rad50name((char *)itemw, name);
 //    int itemtype = (itemw[2] >> 8) & 0xff;
@@ -343,7 +345,7 @@ uint16_t dumpobj_rld_complex(uint8_t* &data, uint16_t &offset, uint16_t blocksiz
 void dumpobj_rld_block(uint8_t* data)
 {
     assert(data != nullptr);
-    char name[64];
+    char name[MAX_SYM_LEN];
     int l;
 
     int8_t disp;

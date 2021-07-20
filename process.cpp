@@ -239,7 +239,7 @@ typedef struct {
 int read_gsd_item(const u_int8_t *itemw, gsd_item_t *gsd_item)
 {
     int i=0;
-    char name[64];
+    char name[MAX_SYM_LEN];
     i += rad50name((char *)itemw, name);
 //    int itemtype = (itemw[2] >> 8) & 0xff;
 //    int itemflags = (itemw[2] & 0377);
@@ -307,7 +307,7 @@ void process_pass1_gsd_item_taddr(const gsd_item_t *item, const SaveStatusEntry*
 
 //                const uint16_t* itemwtmp = (const uint16_t*)(data + 6 + 8 * itmp);
                 const uint8_t* itemwtmp = (const uint8_t*)(data + 6 + itmp);
-                char nametmp[64];
+                char nametmp[MAX_SYM_LEN];
                 gsd_item_t itemtmp;
                 itmp += read_gsd_item(itemwtmp, &itemtmp);
 
@@ -671,7 +671,7 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
     const uint8_t *itemb = data + 6;
     for(int i=0; i<blocksize; )
     {
-        char name[64];
+        char name[MAX_SYM_LEN];
         gsd_item_t item;
         int item_size = read_gsd_item(itemb + i, &item);
 
@@ -1607,7 +1607,7 @@ SymbolTableEntry* process_pass2_rld_lookup(const uint8_t* data, bool global)
 {
     assert(data != nullptr);
 
-    char name[64];
+    char name[MAX_SYM_LEN];
     rad50name((char *)data, name);
 
 //    string lkname = *((uint32_t*)data);
@@ -1642,7 +1642,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
     const int cpxstacksize = 16;
     uint16_t cpxstack[cpxstacksize];  memset(cpxstack, 0, sizeof(cpxstack));
     uint16_t cpxstacktop = 0;
-    char name[64];
+    char name[MAX_SYM_LEN];
     while (!cpxbreak && offset < blocksize)
     {
         uint8_t cpxcmd = *data;  data += 1;  offset += 1;
@@ -1791,7 +1791,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
     uint16_t blocksize = ((uint16_t*)data)[1];
     uint16_t offset = 6;  data += 6;
     uint16_t baseaddr = *((uint16_t*)Globals.TXTBLK);
-    char name[64];
+    char name[MAX_SYM_LEN];
     int l;
 
     while (offset < blocksize)
@@ -2087,7 +2087,7 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
 //        int itemtype = (itemw[2] >> 8) & 0xff;
 //        int itemflags = (itemw[2] & 0377);
         const uint8_t* itemb = (const uint8_t*)(data + 6 + i);
-        char name[64];
+//        char name[MAX_SYM_LEN];
         gsd_item_t item;
         int item_size = read_gsd_item(itemb, &item);
         uint16_t itemtype = item.type;
