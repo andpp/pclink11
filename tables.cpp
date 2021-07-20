@@ -91,7 +91,8 @@ void symbol_table_add_undefined(int index)
     SymbolTableEntry* entry = SymbolTable + index;
     entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
     entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;  // SET SEGMENT # WHERE INITIAL REF
-    entry->status |= (uint16_t)Globals.UNDLST;
+//    entry->status |= (uint16_t)Globals.UNDLST;
+    entry->next = (uint16_t)Globals.UNDLST;
 
     Globals.UNDLST = index;
 
