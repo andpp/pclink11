@@ -408,7 +408,7 @@ void parse_commandline(int argc, char **argv)
             char* filenamecur = sscur->filename;
             const char* cur = argvcur;
             int filenamelen = 0;
-            while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-'))
+            while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-') || *cur == '/')
             {
                 *filenamecur = *cur;
                 filenamecur++;  cur++;

@@ -1169,16 +1169,17 @@ void process_pass_map_init()
         }
         pext++;  // skip the dot
         if (Globals.FlagBIN) {
-            *pext++ = 'b'; *pext++ = 'i'; *pext = 'n';
+            *pext++ = 'b'; *pext++ = 'i'; *pext++ = 'n';
         }
         else if (Globals.SWITCH & SW_R)
         {
-            *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';
+            *pext++ = 'R'; *pext++ = 'E'; *pext++ = 'L';
         }
         else
         {
-            *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';
+            *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
         }
+        *pext = 0;
     }
 
     if (Globals.FlagSTB) // IS THERE AN STB FILE?
@@ -1187,8 +1188,14 @@ void process_pass_map_init()
         char stbfilename[64];
         memcpy(stbfilename, savfilename, 64);
         char* pext = strrchr(stbfilename, '.');
+        if (pext == nullptr)
+        {
+            pext = stbfilename + strlen(stbfilename);
+            *pext = '.';
+        }
         pext++;  // skip the dot
-        *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';
+        *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
+        *pext++ = 0;
 
         // Open STB file
         assert(stbfileobj == nullptr);
@@ -1492,7 +1499,13 @@ void process_pass_map_output()
         char mapfilename[64] = { 0 };
         memcpy(mapfilename, savfilename, 64);
         char* pext = strrchr(mapfilename, '.');
-        pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';
+        if (pext == nullptr)
+        {
+            pext = mapfilename + strlen(mapfilename);
+            *pext = '.';
+        }
+        pext++; *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';
+        *pext = 0;
 
         // Open MAP file
         assert(mapfileobj == nullptr);
