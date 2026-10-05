@@ -1171,6 +1171,10 @@ void process_pass_map_init()
         if (Globals.FlagBIN) {
             *pext++ = 'b'; *pext++ = 'i'; *pext++ = 'n';
         }
+        else if (Globals.FlagLDA)
+        {
+            *pext++ = 'L'; *pext++ = 'D'; *pext++ = 'A';
+        }
         else if (Globals.SWITCH & SW_R)
         {
             *pext++ = 'R'; *pext++ = 'E'; *pext++ = 'L';
@@ -1973,6 +1977,9 @@ void process_pass2_init()
     OutputBuffer = (uint8_t*) calloc(OutputBufferSize, 1);
     if (OutputBuffer == nullptr)
         fatal_error("ERR11: Failed to allocate memory for output buffer.\n");
+    OutputWritten = (uint8_t*) calloc(OutputBufferSize, 1);
+    if (OutputWritten == nullptr)
+        fatal_error("ERR11: Failed to allocate memory for output buffer.\n");
 
     // FORCE BASE OF ZERO FOR VSECT IF ANY
     {
@@ -2082,6 +2089,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     uint8_t* dest = OutputBuffer + addr;
     uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
+    memset(OutputWritten + addr, 1, Globals.TXTLEN);
     printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
 
     if(addr < Globals.MINADDR) Globals.MINADDR = addr;
@@ -2355,9 +2363,65 @@ void process_pass2()
     }
 }
 
+// Write one absolute loader block: 001 000, byte count, load address, data, checksum.
+// Byte count covers the 6-byte header plus data; the checksum byte makes the sum of all bytes zero.
+static void process_pass2_write_lda_block(uint16_t addr, const uint8_t* data, uint16_t len)
+{
+    uint16_t count = len + 6;
+    uint8_t header[6] =
+    {
+        1, 0,
+        (uint8_t)(count & 0377), (uint8_t)(count >> 8),
+        (uint8_t)(addr & 0377), (uint8_t)(addr >> 8)
+    };
+    uint8_t checksum = 0;
+    for (int i = 0; i < 6; i++)
+        checksum -= header[i];
+    for (int i = 0; i < len; i++)
+        checksum -= data[i];
+
+    if (fwrite(header, 1, 6, outfileobj) != 6 ||
+        (len > 0 && fwrite(data, 1, len, outfileobj) != len) ||
+        fwrite(&checksum, 1, 1, outfileobj) != 1)
+        fatal_error("ERR6: Failed to write output file.\n");
+}
+
+// Write LDA file: one block per run of bytes filled by TXT records (gaps are not loaded,
+// so they don't overwrite memory), then an empty block holding the transfer address.
+// An odd transfer address (no start given on .END) makes the absolute loader halt.
+static void process_pass2_write_lda()
+{
+    const int maxblock = 0400;  // max data bytes per block
+    int addr = 0;
+    while (addr < (int)OutputBufferSize)
+    {
+        if (!OutputWritten[addr])
+        {
+            addr++;
+            continue;
+        }
+        int len = 0;
+        while (addr + len < (int)OutputBufferSize && OutputWritten[addr + len] && len < maxblock)
+            len++;
+        process_pass2_write_lda_block((uint16_t)addr, OutputBuffer + addr, (uint16_t)len);
+        addr += len;
+    }
+    process_pass2_write_lda_block(Globals.BEGBLK.value, nullptr, 0);
+}
+
 void process_pass2_done()
 {
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
+
+    if (Globals.FlagLDA)
+    {
+        process_pass2_write_lda();
+
+        // Done with the LDA file, closing
+        fclose(outfileobj);  outfileobj = nullptr;
+
+        return;
+    }
 
     if(Globals.FlagBIN)
     {

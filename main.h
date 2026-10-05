@@ -390,6 +390,7 @@ struct tagGlobals
     bool        FlagSTB;  // STB FILE REQUESTED
     bool        FlagMAP;  // MAP FILE REQUESTED
     bool        FlagBIN;  // BIN file requested
+    bool        FlagLDA;  // LDA (absolute loader format) file requested
     //uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
     uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
 
@@ -416,6 +417,7 @@ extern struct tagGlobals Globals;
 
 extern uint8_t* OutputBuffer;
 extern size_t OutputBufferSize;
+extern uint8_t* OutputWritten;  // 1 for each OutputBuffer byte filled by a TXT record (for /LDA)
 extern int OutputBlockCount;
 
 extern FILE* outfileobj;
