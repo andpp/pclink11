@@ -22,6 +22,7 @@
 
 uint8_t* OutputBuffer = nullptr;
 size_t OutputBufferSize = 0;
+uint8_t* OutputWritten = nullptr;
 int OutputBlockCount = 0;
 
 FILE* outfileobj = nullptr;
@@ -100,6 +101,10 @@ void finalize()
     if (OutputBuffer != nullptr)
     {
         free(OutputBuffer);  OutputBuffer = nullptr;  OutputBufferSize = 0;
+    }
+    if (OutputWritten != nullptr)
+    {
+        free(OutputWritten);  OutputWritten = nullptr;
     }
 
     if (outfileobj != nullptr)
@@ -197,6 +202,13 @@ void parse_commandline_option(const char* cur)
     if (strcmp(cur, "BIN") == 0)
     {
         Globals.FlagBIN = true;
+        return;
+    }
+
+    // /LDA - Generates absolute loader (paper tape) format file
+    if (strcmp(cur, "LDA") == 0)
+    {
+        Globals.FlagLDA = true;
         return;
     }
 
@@ -428,6 +440,8 @@ void parse_commandline(int argc, char **argv)
     // Validate command line params
     if (SaveStatusCount == 0)
         fatal_error("Input file not specified.\n");
+    if (Globals.FlagBIN && Globals.FlagLDA)
+        fatal_error("Options /BIN and /LDA are mutually exclusive.\n");
 }
 
 void print_help()
@@ -445,7 +459,8 @@ void print_help()
            "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
            "  /SYMBOLTABLE /STB  Generates a symbol table file (.STB file)\n"
            "  /MAP               Generates map file\n"
-           "  /BIN               Genegate .BIN file instead of .SAV"
+           "  /BIN               Genegate .BIN file instead of .SAV\n"
+           "  /LDA               Generate absolute loader (.LDA) file instead of .SAV"
            "\n");
     //TODO
 }
