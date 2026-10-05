@@ -1,0 +1,34 @@
+        .TITLE  HELLO   Hello, world! for bare-metal PDP-11 (no OS)
+        .IDENT  /V01.00/
+;
+; Stand-alone program: writes "Hello, world!" CR/LF directly to the
+; console DL11 serial line by polling its transmitter, then HALTs.
+; Loads and starts at 1000 (octal).  Uses only base instructions,
+; so it runs on any PDP-11 model.
+;
+; Registers: R1 = string pointer, R0 = current character.
+;
+XCSR    =       177564                  ; console DL11 transmitter status
+XBUF    =       177566                  ; console DL11 transmitter buffer
+
+        .ASECT
+        .=1000                          ; load/start address
+
+START:  MOV     #START,SP               ; stack grows down below the code
+        MOV     #MSG,R1                 ; R1 -> message
+1$:     MOVB    (R1)+,R0                ; next character
+        BEQ     3$                      ; NUL => end of string
+2$:     TSTB    @#XCSR                  ; transmitter ready (bit 7)?
+        BPL     2$                      ; no, keep polling
+        MOVB    R0,@#XBUF               ; send the character
+        BR      1$
+3$:     TSTB    @#XCSR                  ; wait for last char to drain
+        BPL     3$
+        HALT                            ; done; CONTINUE would fall through
+        BR      START                   ; ...and print again
+
+MSG:    .ASCII  /Hello, world!/
+        .BYTE   15,12,0                 ; CR, LF, NUL terminator
+        .EVEN
+
+        .END    START                   ; transfer (entry) address

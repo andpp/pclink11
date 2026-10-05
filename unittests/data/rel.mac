@@ -1,0 +1,12 @@
+        .TITLE  REL     /LDA test: relocatable program sections
+;
+; Not absolute: the linker places CODE then DATA from 1000 and relocates
+; the reference to MSG. Expected LDA bytes equal the .SAV image bytes.
+;
+        .PSECT  CODE
+START:  MOV     #MSG,R1
+        HALT
+        .PSECT  DATA
+MSG:    .ASCIZ  /AB/
+        .EVEN
+        .END    START

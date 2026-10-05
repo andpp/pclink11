@@ -1,0 +1,14 @@
+        .TITLE  BIG     /LDA test: contiguous run longer than one block
+;
+; 600 (octal) contiguous bytes from 1000. Expected LDA: blocks of at most
+; 400 bytes - 1000 (400 bytes) and 1400 (200 bytes) - then transfer 1000.
+;
+        .ASECT
+        .=1000
+START:  HALT
+N       =       1
+        .REPT   277                     ; 277 more words: 600 bytes in all
+        .WORD   N
+N       =       N+1
+        .ENDR
+        .END    START

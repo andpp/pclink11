@@ -27,6 +27,8 @@ Options (both `/` and `-` prefixes are allowed):
 - `/ALPHABETIZE` `/A` — Lists global symbols on the link map in alphabetical order
 - `/SYMBOLTABLE` `/STB` — Generates a symbol table file (.STB file)
 - `/MAP` — Generates map file
+- `/BIN` — Generates `.bin` memory image (load address, byte count, data) instead of `.SAV`
+- `/LDA` — Generates absolute loader (paper tape) `.LDA` file instead of `.SAV`: one block per run of loaded bytes, then the transfer address block (odd if `.END` gives no start address)
 - `--version` — Show the program version information
 - `--help` — Show quick help on the command line options
 
@@ -36,6 +38,21 @@ Examples:
 - `pclink11 HELLO.OBJ` — link the object file, will produce `HELLO.SAV` executable
 - `pclink11 /MAP /SYMBOLTABLE /EXECUTE:LD.SYS LD.OBJ SYSLIB.OBJ /X` — link object file with system library, produce map file and symbol file, save output as `LD.SYS`, do not put bitmap in the first block
 - `pclink11 TEST1.OBJ TEST2.OBJ /MAP /WIDE /A` — link two object files, generate map file with wide format, alphabetize list of symbols
+
+## Unit Tests
+Folder `unittests` contains GoogleTest unit tests (needs GoogleTest 1.17+ and CMake):
+- `test_options` — command line option parsing, including error cases;
+- `test_lda` — end-to-end checks of `/LDA` output for the `.obj` fixtures in `unittests/data`
+  (format, checksums, block layout, transfer address, and loaded bytes equal to the `.SAV` image).
+
+```
+cmake -S . -B build-tests -DPCLINK11_TESTS=ON    # add -DCMAKE_PREFIX_PATH=/opt/local for MacPorts GTest
+cmake --build build-tests
+cd build-tests && ctest --output-on-failure
+```
+
+The fixtures' MACRO-11 sources are in `unittests/data/*.mac`; `unittests/data/regen.sh` rebuilds
+ the `. obj` files with `macro11`.
 
 ## Testing Strategy
 Folder `tests` contains several dozens sub-folders with .OBJ files.

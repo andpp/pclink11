@@ -27,3 +27,4 @@ testrunner/testrunner
 testrunner/testrunner.o
 CMakeLists.txt.user*
 
+/build*/

@@ -1,0 +1,9 @@
+        .TITLE  NOSTRT  /LDA test: no transfer address on .END
+;
+; Expected LDA: transfer address 1 (odd), so the absolute loader halts
+; after loading instead of starting the program.
+;
+        .ASECT
+        .=1000
+        HALT
+        .END

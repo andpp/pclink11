@@ -50,3 +50,10 @@ file(GLOB link11_SRC
 )
 
 add_executable(link11 ${link11_SRC} ${CMAKE_BINARY_DIR}/version.h)
+
+# GTest unit tests: cmake -DPCLINK11_TESTS=ON ..; make; ctest
+option(PCLINK11_TESTS "Build GTest unit tests" OFF)
+if(PCLINK11_TESTS)
+    enable_testing()
+    add_subdirectory(unittests)
+endif()

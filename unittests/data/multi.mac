@@ -1,0 +1,17 @@
+        .TITLE  MULTI   /LDA test: separate runs, gap, start != load base
+;
+; Expected LDA: a 4-byte block at 4 (the vector), no block for the .BLKW
+; area 1000-1617 (never written by TXT records), code from 1620, and a
+; transfer address of 1620 (START), not the lowest loaded address.
+;
+        .ASECT
+        .=4                             ; bus-error vector
+        .WORD   TRAP4,340
+
+        .=1000
+DATA:   .BLKW   200.                    ; 400. bytes reserved, not loaded
+START:  MOV     #1000,SP
+        MOV     @#4,R0
+        HALT
+TRAP4:  HALT
+        .END    START
